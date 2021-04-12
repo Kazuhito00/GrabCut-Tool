@@ -80,11 +80,11 @@ def execute_grabcut(image, mask, bgd_model, fgd_model, iteration, roi=None):
     loading_image = loading_image * loading_mask[:, :, np.newaxis]
     loading_image = cv.addWeighted(loading_image, 0.7, image, 0.3, 0)
     cv.putText(loading_image, "PROCESSING...",
-               (int(image_width / 2) - (6 * 20), int(image_height / 2)),
-               cv.FONT_HERSHEY_SIMPLEX, 1.2, (255, 255, 255), 4, cv.LINE_AA)
+               (int(image_width / 2) - (6 * 18), int(image_height / 2)),
+               cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 4, cv.LINE_AA)
     cv.putText(loading_image, "PROCESSING...",
-               (int(image_width / 2) - (6 * 20), int(image_height / 2)),
-               cv.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 0), 2, cv.LINE_AA)
+               (int(image_width / 2) - (6 * 18), int(image_height / 2)),
+               cv.FONT_HERSHEY_SIMPLEX, 1.0, (0, 0, 0), 2, cv.LINE_AA)
     cv.imshow(window_name, loading_image)
     _ = cv.waitKey(1)
 
@@ -132,9 +132,15 @@ if __name__ == '__main__':
     # ファイル読み込み ##########################################################
     image = cv.imread("sample.jpg")
     resize_image = cv.resize(image, (width, height))
+    roi_image = cv.resize(image, (width, height))
 
     # 初期ROI選択 ##############################################################
-    roi = cv.selectROI(window_name, resize_image, showCrosshair=False)
+    cv.putText(roi_image, "Select ROI and press Enter", (5, 25),
+               cv.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2, cv.LINE_AA)
+    cv.putText(roi_image, "Select ROI and press Enter", (5, 25),
+               cv.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 1, cv.LINE_AA)
+
+    roi = cv.selectROI(window_name, roi_image, showCrosshair=False)
 
     mask = np.zeros(resize_image.shape[:2], dtype=np.uint8)
     bgd_model = np.zeros((1, 65), dtype=np.float64)
