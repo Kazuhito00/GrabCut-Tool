@@ -118,7 +118,6 @@ def save_index_color_png(output_path, filename, mask_image):
 
     # 保存先パス作成
     save_path = os.path.join(output_path, base_filename + '.png')
-    print(save_path)
 
     # インデックスカラーモードで保存
     # 読み込む場合は下記のように記述
@@ -137,7 +136,7 @@ if __name__ == '__main__':
     prev_point = None
 
     # ウィンドウ名
-    window_name = "GrabCut Sample"
+    window_name = "GrabCut Tool"
     cv.namedWindow(window_name, cv.WINDOW_AUTOSIZE)
 
     # 引数解析 #################################################################
