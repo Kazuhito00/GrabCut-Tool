@@ -1,14 +1,20 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import os
+import glob
 import copy
 import argparse
 
 import cv2 as cv
 import numpy as np
+from PIL import Image
 
 
 def get_args():
     parser = argparse.ArgumentParser()
+
+    parser.add_argument("--input", type=str, default='image')
+    parser.add_argument("--output", type=str, default='output')
 
     parser.add_argument("--width", help='cap width', type=int, default=512)
     parser.add_argument("--height", help='cap height', type=int, default=512)
@@ -106,6 +112,24 @@ def execute_grabcut(image, mask, bgd_model, fgd_model, iteration, roi=None):
     return mask, bgd_model, fgd_model, debug_image
 
 
+def save_index_color_png(output_path, filename, mask_image):
+    # ファイル名(拡張子無し)取得
+    base_filename = os.path.splitext(os.path.basename(filename))[0]
+
+    # 保存先パス作成
+    save_path = os.path.join(output_path, base_filename + '.png')
+    print(save_path)
+
+    # インデックスカラーモードで保存
+    # 読み込む場合は下記のように記述
+    # pil_image = Image.open("sample.png")
+    # mask = np.asarray(pil_image)
+    color_palette = [0, 0, 0, 255, 255, 255]
+    with Image.fromarray(mask_image, mode="P") as png_image:
+        png_image.putpalette(color_palette)
+        png_image.save(save_path)
+
+
 if __name__ == '__main__':
     # 描画フラグ
     drawing_mode = 0
@@ -119,6 +143,9 @@ if __name__ == '__main__':
     # 引数解析 #################################################################
     args = get_args()
 
+    input_path = args.input
+    output_path = args.output
+
     width = args.width
     height = args.height
 
@@ -130,38 +157,68 @@ if __name__ == '__main__':
     thickness = args.thickness
 
     # ファイル読み込み ##########################################################
-    image = cv.imread("sample.jpg")
-    resize_image = cv.resize(image, (width, height))
-    roi_image = cv.resize(image, (width, height))
+    files = glob.glob(os.path.join(input_path, '*'))
+    file_index = 0
 
-    # 初期ROI選択 ##############################################################
-    cv.putText(roi_image, "Select ROI and press Enter", (5, 25),
-               cv.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2, cv.LINE_AA)
-    cv.putText(roi_image, "Select ROI and press Enter", (5, 25),
-               cv.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 1, cv.LINE_AA)
+    # 動作モード ###############################################################
+    SELECT_MODE = 0
+    ROI_MODE = 1
+    GRABCUT_MODE = 2
 
-    roi = cv.selectROI(window_name, roi_image, showCrosshair=False)
-
-    mask = np.zeros(resize_image.shape[:2], dtype=np.uint8)
-    bgd_model = np.zeros((1, 65), dtype=np.float64)
-    fgd_model = np.zeros((1, 65), dtype=np.float64)
-
-    # GrabCut実施
-    mask, bgd_model, fgd_model, debug_image = execute_grabcut(
-        resize_image,
-        mask,
-        bgd_model,
-        fgd_model,
-        iteration,
-        roi,
-    )
-
-    # マウスコールバック登録
-    cv.setMouseCallback(window_name, mouse_callback)
+    mode = SELECT_MODE
 
     while (True):
-        # マウス描画後GrabCut処理実施
-        if grabcut_flag:
+        if mode == SELECT_MODE:
+            image = cv.imread(files[file_index])
+            resize_image = cv.resize(image, (width, height))
+            debug_image = copy.deepcopy(resize_image)
+            mask = None
+
+            cv.putText(debug_image, "n:Next p:Previous Enter:Confirm select",
+                       (5, 25), cv.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255),
+                       2, cv.LINE_AA)
+            cv.putText(debug_image, "n:Next p:Previous Enter:Confirm select",
+                       (5, 25), cv.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 1,
+                       cv.LINE_AA)
+        if mode == ROI_MODE:
+            image = cv.imread(files[file_index])
+            resize_image = cv.resize(image, (width, height))
+            roi_image = cv.resize(image, (width, height))
+
+            # 初期ROI選択 #######################################################
+            cv.putText(roi_image, "Select ROI and press Enter", (5, 25),
+                       cv.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2,
+                       cv.LINE_AA)
+            cv.putText(roi_image, "Select ROI and press Enter", (5, 25),
+                       cv.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 1, cv.LINE_AA)
+
+            roi = cv.selectROI(window_name, roi_image, showCrosshair=False)
+
+            mask = np.zeros(resize_image.shape[:2], dtype=np.uint8)
+            bgd_model = np.zeros((1, 65), dtype=np.float64)
+            fgd_model = np.zeros((1, 65), dtype=np.float64)
+
+            # GrabCut実施
+            mask, bgd_model, fgd_model, debug_image = execute_grabcut(
+                resize_image,
+                mask,
+                bgd_model,
+                fgd_model,
+                iteration,
+                roi,
+            )
+
+            # マウスコールバック登録
+            cv.setMouseCallback(window_name, mouse_callback)
+
+            # マスク画像保存
+            save_mask = np.where((mask == 2) | (mask == 0), 0,
+                                 1).astype('uint8')
+            save_index_color_png(output_path, files[file_index], save_mask)
+
+            mode = GRABCUT_MODE
+        if mode == GRABCUT_MODE and grabcut_flag:
+            # マウス描画後GrabCut処理実施
             grabcut_flag = False
             mask, bgd_model, fgd_model, debug_image = execute_grabcut(
                 resize_image,
@@ -171,14 +228,31 @@ if __name__ == '__main__':
                 iteration,
             )
 
+            # マスク画像保存
+            save_mask = np.where((mask == 2) | (mask == 0), 0,
+                                 1).astype('uint8')
+            save_index_color_png(output_path, files[file_index], save_mask)
+
         # 画面反映 #############################################################
         cv.imshow(window_name, debug_image)
-        mask_image = np.where((mask == 2) | (mask == 0), 0,
-                              255).astype('uint8')
-        cv.imshow('Mask Image', mask_image)
+        if mask is not None:
+            mask_image = np.where((mask == 2) | (mask == 0), 0,
+                                  255).astype('uint8')
+            cv.imshow('Mask Image', mask_image)
 
-        # キー処理(ESC：終了) #################################################
+        # キー処理(ESC：終了、n：次画像へ、p：前画像へ、Enter：画像選択確定) ######
         key = cv.waitKey(1)
+        if key == 110:  # n
+            if (file_index + 1) < len(files):
+                file_index = file_index + 1
+                mode = SELECT_MODE
+        if key == 112:  # p
+            if 0 <= (file_index - 1):
+                file_index = file_index - 1
+                mode = SELECT_MODE
+        if key == 13:  # Enter
+            if mode == SELECT_MODE:
+                mode = ROI_MODE
         if key == 27:  # ESC
             break
 
