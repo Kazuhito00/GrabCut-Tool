@@ -44,3 +44,5 @@ grabCutの反復回数<br>
  
 # License 
 GrabCut-Tool is under [Apache-2.0 License](LICENSE).
+
+サンプル画像は[フリー素材ぱくたそ](https://www.pakutaso.com)様の写真を利用しています。
